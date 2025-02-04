@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Property Search</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Property Search Tool</h1>
+    <form action="/" method="POST">
+        <label for="home_value">Maximum Home Value ($):</label>
+        <input type="text" id="home_value" name="home_value" required><br><br>
+
+        <label for="home_size">Maximum Home Size (sq ft):</label>
+        <input type="text" id="home_size" name="home_size" required><br><br>
+
+        <label for="area">County:</label>
+        <input type="text" id="area" name="area" required><br><br>
+
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>
