@@ -1,23 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Property Search</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <h1>Property Search Tool</h1>
-    <form action="/" method="POST">
-        <label for="home_value">Maximum Home Value ($):</label>
-        <input type="text" id="home_value" name="home_value" required><br><br>
+<form method="POST">
+    <label for="county">Enter County Name:</label>
+    <input type="text" name="county" required>
 
-        <label for="home_size">Maximum Home Size (sq ft):</label>
-        <input type="text" id="home_size" name="home_size" required><br><br>
+    <label for="state">Enter State (Abbreviation, e.g., MI for Michigan):</label>
+    <input type="text" name="state" maxlength="2" required>
 
-        <label for="area">County:</label>
-        <input type="text" id="area" name="area" required><br><br>
+    <label for="home_value">Maximum Home Price (e.g., 450 for 450k):</label>
+    <input type="text" name="home_value" required>
 
-        <button type="submit">Submit</button>
-    </form>
-</body>
-</html>
+    <button type="submit">Search Properties</button>
+</form>
