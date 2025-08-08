@@ -1,28 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Search Results</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+  <title>Parcel Search Results</title>
 </head>
 <body>
-    <h1>Property Search Results</h1>
-    {% if properties %}
-        <ul>
-        {% for property in properties %}
-            <li>
-                <strong>Address:</strong> {{ property.address }}<br>
-                <strong>Price:</strong> ${{ property.price }}<br>
-                <strong>Size:</strong> {{ property.size }} sq ft<br>
-                <strong>Owner:</strong> {{ property.owner }}<br>
-                <strong>Offer Price (60%):</strong> ${{ property.price | int * 0.6 }}
-            </li>
-            <hr>
-        {% endfor %}
-        </ul>
-    {% else %}
-        <p>No properties found matching your criteria.</p>
-    {% endif %}
-    <a href="/">Back to Search</a>
+  <h1>Parcel Search Results</h1>
+  <a href="/">New Search</a>
+
+  <p><strong>{{ properties|length }}</strong> result{{ properties|length != 1 and 's' or '' }}</p>
+
+  {% if not properties %}
+    <p>No results. Try loosening filters or confirm the county import.</p>
+  {% else %}
+    <!-- Keep the user's last filters for export -->
+    <form method="GET" action="/export" style="margin:12px 0;">
+      <input type="hidden" name="county" value="{{ (form_data and form_data.get('county')) or request.args.get('county') }}">
+      <input type="hidden" name="state" value="{{ (form_data and form_data.get('state')) or request.args.get('state','MI') }}">
+      <input type="hidden" name="max_value" value="{{ (form_data and form_data.get('max_value')) or request.args.get('max_value') }}">
+      <input type="hidden" name="min_sqft" value="{{ (form_data and form_data.get('min_sqft')) or request.args.get('min_sqft') }}">
+      <input type="hidden" name="max_sqft" value="{{ (form_data and form_data.get('max_sqft')) or request.args.get('max_sqft') }}">
+      <input type="hidden" name="year_min" value="{{ (form_data and form_data.get('year_min')) or request.args.get('year_min') }}">
+      <button type="submit">Export CSV</button>
+    </form>
+
+    <table border="1" cellpadding="5">
+      <tr>
+        <th>Owner</th>
+        <th>Mailing Address</th>
+        <th>Property Address</th>
+        <th>Building SqFt</th>
+        <th>Assessed Value</th>
+        <th>Year Built</th>
+      </tr>
+      {% for prop in properties %}
+      <tr>
+        <td>{{ prop.owner_name }}</td>
+        <td>{{ prop.mailing_address1 }} {{ prop.mailing_city }} {{ prop.mailing_state }} {{ prop.mailing_zip }}</td>
+        <td>{{ prop.situs_address }}, {{ prop.city }} {{ prop.state }} {{ prop.zip_code }}</td>
+        <td>{{ prop.building_sqft }}</td>
+        <td>{{ prop.assessed_value or prop.taxable_value }}</td>
+        <td>{{ prop.year_built }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
 </body>
 </html>
