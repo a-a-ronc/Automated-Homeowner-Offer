@@ -14,7 +14,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
-DB_FILE = "contacts.db"
+DB_FILE = os.path.join(os.path.dirname(__file__), "contacts.db")
 
 # Email configuration - set these in Replit Secrets
 SMTP_SERVER = "smtp.gmail.com"
@@ -214,17 +214,28 @@ def login():
 
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
+    
+    # Check if user exists
     cur.execute("SELECT id, password_hash FROM users WHERE username=?", (username,))
     user = cur.fetchone()
+    
+    print(f"Debug: Looking for user '{username}'")
+    print(f"Debug: User found: {user is not None}")
+    
+    if user:
+        stored_hash = user[1]
+        provided_hash = hash_password(password)
+        print(f"Debug: Password hashes match: {stored_hash == provided_hash}")
+        
+        if stored_hash == provided_hash:
+            session['user_id'] = user[0]
+            session['username'] = username
+            conn.close()
+            return redirect(url_for('index'))
+    
     conn.close()
-
-    if user and user[1] == hash_password(password):
-        session['user_id'] = user[0]
-        session['username'] = username
-        return redirect(url_for('index'))
-    else:
-        flash("Invalid username or password")
-        return render_template("login.html")
+    flash("Invalid username or password")
+    return render_template("login.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -246,13 +257,23 @@ def register():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     try:
+        password_hash = hash_password(password)
+        print(f"Debug: Registering user '{username}' with hash: {password_hash}")
+        
         cur.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", 
-                   (username, hash_password(password)))
+                   (username, password_hash))
         conn.commit()
+        
+        print(f"Debug: User '{username}' registered successfully")
         flash("Registration successful! Please log in.")
         return redirect(url_for('login'))
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as e:
+        print(f"Debug: Registration failed for '{username}': {e}")
         flash("Username already exists")
+        return render_template("register.html")
+    except Exception as e:
+        print(f"Debug: Unexpected error during registration: {e}")
+        flash("Registration failed. Please try again.")
         return render_template("register.html")
     finally:
         conn.close()
@@ -648,6 +669,10 @@ def export_campaign(campaign_id):
         headers={"Content-Disposition": f"attachment; filename=campaign_{campaign_id}_export.csv"}
     )
 
-if __name__ == "__main__":
+def init_database():
+    """Initialize all database tables"""
     init_users_table()
+
+if __name__ == "__main__":
+    init_database()
     app.run(host="0.0.0.0", port=5000, debug=True)
