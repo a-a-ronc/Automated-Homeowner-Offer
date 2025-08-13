@@ -26,6 +26,12 @@
                 <p><strong>County:</strong> {{ campaign.county }}, {{ campaign.state }}</p>
                 <p><strong>Max Value:</strong> ${{ "{:,.0f}".format(campaign.max_value) if campaign.max_value else 'No limit' }}</p>
                 <p><strong>Offer Percentage:</strong> {{ campaign.offer_percentage }}%</p>
+                {% if campaign.test_mode %}
+                <p><strong>Mode:</strong> <span style="color: #e74c3c; font-weight: bold;">TEST MODE</span></p>
+                <p><strong>Test Email:</strong> {{ campaign.test_email }}</p>
+                {% else %}
+                <p><strong>Mode:</strong> <span style="color: #27ae60; font-weight: bold;">PRODUCTION</span></p>
+                {% endif %}
                 <p><strong>Created:</strong> {{ campaign.created_at[:10] }}</p>
             </div>
             

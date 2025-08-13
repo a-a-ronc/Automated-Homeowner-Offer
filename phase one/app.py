@@ -43,6 +43,8 @@ def init_users_table():
             state TEXT,
             max_value REAL,
             offer_percentage REAL DEFAULT 60,
+            test_mode BOOLEAN DEFAULT FALSE,
+            test_email TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
@@ -99,12 +101,18 @@ def query_parcels(county, state, max_value=None, min_sqft=None, max_sqft=None, y
     conn.close()
     return [dict(r) for r in rows]
 
-def find_email_address(first_name, last_name, address, city, state):
+def find_email_address(first_name, last_name, address, city, state, test_mode=False):
     """Attempt to find email address using various methods"""
     # This is a simplified version - in production you'd use services like:
     # - Hunter.io API
     # - Clearbit API
     # - People search APIs
+    
+    if test_mode:
+        # In test mode, generate predictable test emails
+        if first_name and last_name:
+            return f"test.{first_name.lower()}.{last_name.lower()}@example.com"
+        return None
     
     # For demo purposes, we'll simulate finding some emails
     common_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']
@@ -289,14 +297,16 @@ def create_campaign():
     max_value = data.get("max_value")
     offer_percentage = data.get("offer_percentage", 60)
     campaign_name = data.get("campaign_name", f"{county} Campaign")
+    test_mode = data.get("test_mode", False)
+    test_email = data.get("test_email", "")
     
     # Create campaign
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO campaigns (user_id, name, county, state, max_value, offer_percentage)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (session['user_id'], campaign_name, county, state, max_value, offer_percentage))
+        INSERT INTO campaigns (user_id, name, county, state, max_value, offer_percentage, test_mode, test_email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (session['user_id'], campaign_name, county, state, max_value, offer_percentage, test_mode, test_email))
     
     campaign_id = cur.lastrowid
     
@@ -318,7 +328,8 @@ def create_campaign():
             first_name, last_name, 
             prop.get('situs_address', ''),
             prop.get('city', ''),
-            prop.get('state', '')
+            prop.get('state', ''),
+            test_mode=test_mode
         )
         
         # Add to campaign contacts
@@ -342,7 +353,8 @@ def create_campaign():
     return jsonify({
         'success': True,
         'campaign_id': campaign_id,
-        'contacts_added': contacts_added
+        'contacts_added': contacts_added,
+        'test_mode': test_mode
     })
 
 @app.route("/campaigns")
@@ -406,38 +418,52 @@ def send_emails(campaign_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
-        return jsonify({'success': False, 'error': 'Email credentials not configured'})
-    
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     
-    # Get campaign and contacts with emails
-    cur.execute("""
-        SELECT cc.*, c.offer_percentage 
-        FROM campaign_contacts cc
-        JOIN campaigns c ON cc.campaign_id = c.id
-        WHERE cc.campaign_id = ? AND cc.email IS NOT NULL AND cc.email_sent = 0
-    """, (campaign_id,))
+    # Get campaign info
+    cur.execute("SELECT test_mode, test_email FROM campaigns WHERE id = ?", (campaign_id,))
+    campaign_info = cur.fetchone()
+    test_mode = campaign_info[0] if campaign_info else False
+    test_email = campaign_info[1] if campaign_info else ""
     
-    contacts = cur.fetchall()
-    
-    emails_sent = 0
-    try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+    if test_mode:
+        if not test_email:
+            return jsonify({'success': False, 'error': 'Test email not provided'})
         
-        for contact in contacts:
-            try:
-                # Create email
-                msg = MimeMultipart()
-                msg['From'] = EMAIL_ADDRESS
-                msg['To'] = contact[6]  # email
-                msg['Subject'] = f"Cash Offer for Your Property at {contact[10]}"  # property_address
-                
-                # Email body
-                body = f"""
+        # In test mode, send one sample email to the test address
+        cur.execute("""
+            SELECT cc.*, c.offer_percentage 
+            FROM campaign_contacts cc
+            JOIN campaigns c ON cc.campaign_id = c.id
+            WHERE cc.campaign_id = ? AND cc.email IS NOT NULL
+            LIMIT 1
+        """, (campaign_id,))
+        contact = cur.fetchone()
+        
+        if not contact:
+            return jsonify({'success': False, 'error': 'No contacts with emails found'})
+        
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            
+            # Create test email
+            msg = MimeMultipart()
+            msg['From'] = EMAIL_ADDRESS
+            msg['To'] = test_email
+            msg['Subject'] = f"TEST EMAIL - Cash Offer for Property at {contact[10]}"
+            
+            # Email body with test notice
+            body = f"""
+*** THIS IS A TEST EMAIL - NOT SENT TO ACTUAL PROPERTY OWNER ***
+
+This is how your email would look when sent to: {contact[4]} {contact[5]}
+Original email would go to: {contact[6]}
+
+---
+
 Dear {contact[4]} {contact[5]},
 
 I hope this email finds you well. I am a local real estate investor, and I'm interested in purchasing your property at {contact[10]} for cash.
@@ -448,37 +474,101 @@ I can offer you a quick, hassle-free sale with:
 • No real estate agent fees
 • Buy as-is condition
 
-Based on current market conditions, I can offer {contact[14] * (contact[15]/100):,.0f} cash for your property.
+Based on current market conditions, I can offer ${contact[12] * (contact[13]/100):,.0f} cash for your property.
 
 If you're interested in learning more, please reply to this email or call me.
 
 Best regards,
 [Your Name]
 [Your Phone]
-                """.strip()
-                
-                msg.attach(MimeText(body, 'plain'))
-                
-                server.send_message(msg)
-                
-                # Mark as sent
-                cur.execute("UPDATE campaign_contacts SET email_sent = 1 WHERE id = ?", (contact[0],))
-                emails_sent += 1
-                
-                time.sleep(1)  # Rate limiting
-                
-            except Exception as e:
-                print(f"Failed to send email to {contact[6]}: {e}")
-        
-        server.quit()
-        conn.commit()
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-    finally:
-        conn.close()
+
+---
+*** END TEST EMAIL ***
+            """.strip()
+            
+            msg.attach(MimeText(body, 'plain'))
+            server.send_message(msg)
+            server.quit()
+            
+            return jsonify({'success': True, 'emails_sent': 1, 'test_mode': True, 'message': f'Test email sent to {test_email}'})
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to send test email: {str(e)}'})
+        finally:
+            conn.close()
     
-    return jsonify({'success': True, 'emails_sent': emails_sent})
+    else:
+        # Production mode - send actual emails
+        if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+            return jsonify({'success': False, 'error': 'Email credentials not configured'})
+        
+        # Get campaign and contacts with emails
+        cur.execute("""
+            SELECT cc.*, c.offer_percentage 
+            FROM campaign_contacts cc
+            JOIN campaigns c ON cc.campaign_id = c.id
+            WHERE cc.campaign_id = ? AND cc.email IS NOT NULL AND cc.email_sent = 0
+        """, (campaign_id,))
+        
+        contacts = cur.fetchall()
+        
+        emails_sent = 0
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            
+            for contact in contacts:
+                try:
+                    # Create email
+                    msg = MimeMultipart()
+                    msg['From'] = EMAIL_ADDRESS
+                    msg['To'] = contact[6]  # email
+                    msg['Subject'] = f"Cash Offer for Your Property at {contact[10]}"  # property_address
+                    
+                    # Email body
+                    body = f"""
+Dear {contact[4]} {contact[5]},
+
+I hope this email finds you well. I am a local real estate investor, and I'm interested in purchasing your property at {contact[10]} for cash.
+
+I can offer you a quick, hassle-free sale with:
+• Cash purchase - no financing contingencies
+• Quick closing (7-14 days)
+• No real estate agent fees
+• Buy as-is condition
+
+Based on current market conditions, I can offer ${contact[12] * (contact[13]/100):,.0f} cash for your property.
+
+If you're interested in learning more, please reply to this email or call me.
+
+Best regards,
+[Your Name]
+[Your Phone]
+                    """.strip()
+                    
+                    msg.attach(MimeText(body, 'plain'))
+                    
+                    server.send_message(msg)
+                    
+                    # Mark as sent
+                    cur.execute("UPDATE campaign_contacts SET email_sent = 1 WHERE id = ?", (contact[0],))
+                    emails_sent += 1
+                    
+                    time.sleep(1)  # Rate limiting
+                    
+                except Exception as e:
+                    print(f"Failed to send email to {contact[6]}: {e}")
+            
+            server.quit()
+            conn.commit()
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+        finally:
+            conn.close()
+        
+        return jsonify({'success': True, 'emails_sent': emails_sent, 'test_mode': False})
 
 @app.route("/generate_letters/<int:campaign_id>")
 def generate_letters(campaign_id):
