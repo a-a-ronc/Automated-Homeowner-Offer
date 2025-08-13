@@ -1,0 +1,8 @@
+modules = ["python-3.12", "web"]
+run = "run_all"
+
+[nix]
+channel = "stable-25_05"
+
+[deployment]
+run = ["sh", "-c", "run_all"]
