@@ -6,3 +6,15 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "run_all"]
+
+[workflows]
+runButton = "Run Property Investment Tool"
+
+[[workflows.workflow]]
+name = "Run Property Investment Tool"
+author = 42527382
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd \"phase one\" && python app.py"
