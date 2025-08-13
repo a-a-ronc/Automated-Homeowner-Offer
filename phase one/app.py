@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, Response, session, redirect, url_for, flash, jsonify
 import sqlite3
 import csv
@@ -6,7 +5,7 @@ import io
 import hashlib
 import os
 import smtplib
-from email.mime.text import MimeText
+from email.mime.text import MIMEText
 from email.mime.multipart import MimeMultipart
 import requests
 import re
@@ -107,16 +106,16 @@ def find_email_address(first_name, last_name, address, city, state, test_mode=Fa
     # - Hunter.io API
     # - Clearbit API
     # - People search APIs
-    
+
     if test_mode:
         # In test mode, generate predictable test emails
         if first_name and last_name:
             return f"test.{first_name.lower()}.{last_name.lower()}@example.com"
         return None
-    
+
     # For demo purposes, we'll simulate finding some emails
     common_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com']
-    
+
     if first_name and last_name:
         # Try common email patterns
         patterns = [
@@ -125,37 +124,37 @@ def find_email_address(first_name, last_name, address, city, state, test_mode=Fa
             f"{first_name[0].lower()}{last_name.lower()}",
             f"{first_name.lower()}{last_name[0].lower()}"
         ]
-        
+
         # Simulate 30% success rate for demo
         import random
         if random.random() < 0.3:
             pattern = random.choice(patterns)
             domain = random.choice(common_domains)
             return f"{pattern}@{domain}"
-    
+
     return None
 
 def parse_owner_name(owner_name):
     """Extract first and last name from owner name"""
     if not owner_name:
         return None, None
-    
+
     # Remove common suffixes and prefixes
     cleaned = re.sub(r'\b(LLC|INC|CORP|TRUST|ESTATE|ET AL|ETAL)\b', '', owner_name.upper())
     cleaned = re.sub(r'[,&].*', '', cleaned)  # Remove everything after comma or &
-    
+
     parts = cleaned.strip().split()
     if len(parts) >= 2:
         return parts[0].title(), parts[-1].title()
     elif len(parts) == 1:
         return parts[0].title(), ""
-    
+
     return None, None
 
 def generate_ai_letter(first_name, last_name, property_address, assessed_value, offer_percentage):
     """Generate AI-powered letter content"""
     offer_amount = int(assessed_value * (offer_percentage / 100)) if assessed_value else "competitive cash"
-    
+
     letter_template = f"""
 {datetime.now().strftime('%B %d, %Y')}
 
@@ -192,7 +191,7 @@ Sincerely,
 
 P.S. This is a no-obligation offer. I understand that selling your home is a big decision, and I respect whatever choice you make.
 """
-    
+
     return letter_template.strip()
 
 @app.route("/", methods=["GET"])
@@ -205,20 +204,20 @@ def index():
 def login():
     if request.method == "GET":
         return render_template("login.html")
-    
+
     username = request.form.get("username")
     password = request.form.get("password")
-    
+
     if not username or not password:
         flash("Please enter both username and password")
         return render_template("login.html")
-    
+
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute("SELECT id, password_hash FROM users WHERE username=?", (username,))
     user = cur.fetchone()
     conn.close()
-    
+
     if user and user[1] == hash_password(password):
         session['user_id'] = user[0]
         session['username'] = username
@@ -231,19 +230,19 @@ def login():
 def register():
     if request.method == "GET":
         return render_template("register.html")
-    
+
     username = request.form.get("username")
     password = request.form.get("password")
     confirm_password = request.form.get("confirm_password")
-    
+
     if not username or not password:
         flash("Please enter username and password")
         return render_template("register.html")
-    
+
     if password != confirm_password:
         flash("Passwords do not match")
         return render_template("register.html")
-    
+
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     try:
@@ -267,7 +266,7 @@ def logout():
 def search():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     if request.method == "GET":
         return render_template("search.html")
 
@@ -290,7 +289,7 @@ def search():
 def create_campaign():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     data = request.get_json()
     county = data.get("county")
     state = data.get("state", "MI")
@@ -299,7 +298,7 @@ def create_campaign():
     campaign_name = data.get("campaign_name", f"{county} Campaign")
     test_mode = data.get("test_mode", False)
     test_email = data.get("test_email", "")
-    
+
     # Create campaign
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
@@ -307,22 +306,22 @@ def create_campaign():
         INSERT INTO campaigns (user_id, name, county, state, max_value, offer_percentage, test_mode, test_email)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (session['user_id'], campaign_name, county, state, max_value, offer_percentage, test_mode, test_email))
-    
+
     campaign_id = cur.lastrowid
-    
+
     # Get properties
     properties = query_parcels(county, state, max_value)
-    
+
     # Process each property
     contacts_added = 0
     for prop in properties:
         if not prop.get('owner_name'):
             continue
-            
+
         first_name, last_name = parse_owner_name(prop['owner_name'])
         if not first_name:
             continue
-            
+
         # Try to find email
         email = find_email_address(
             first_name, last_name, 
@@ -331,7 +330,7 @@ def create_campaign():
             prop.get('state', ''),
             test_mode=test_mode
         )
-        
+
         # Add to campaign contacts
         cur.execute("""
             INSERT INTO campaign_contacts 
@@ -346,10 +345,10 @@ def create_campaign():
             prop.get('situs_address', ''), prop.get('assessed_value')
         ))
         contacts_added += 1
-    
+
     conn.commit()
     conn.close()
-    
+
     return jsonify({
         'success': True,
         'campaign_id': campaign_id,
@@ -361,11 +360,11 @@ def create_campaign():
 def campaigns():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    
+
     cur.execute("""
         SELECT c.*, 
                COUNT(cc.id) as total_contacts,
@@ -377,30 +376,30 @@ def campaigns():
         GROUP BY c.id
         ORDER BY c.created_at DESC
     """, (session['user_id'],))
-    
+
     campaigns_data = cur.fetchall()
     conn.close()
-    
+
     return render_template("campaigns.html", campaigns=campaigns_data)
 
 @app.route("/campaign/<int:campaign_id>")
 def campaign_detail(campaign_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    
+
     # Get campaign info
     cur.execute("SELECT * FROM campaigns WHERE id = ? AND user_id = ?", 
                 (campaign_id, session['user_id']))
     campaign = cur.fetchone()
-    
+
     if not campaign:
         flash("Campaign not found")
         return redirect(url_for('campaigns'))
-    
+
     # Get contacts
     cur.execute("""
         SELECT * FROM campaign_contacts 
@@ -408,29 +407,29 @@ def campaign_detail(campaign_id):
         ORDER BY email IS NOT NULL DESC, last_name
     """, (campaign_id,))
     contacts = cur.fetchall()
-    
+
     conn.close()
-    
+
     return render_template("campaign_detail.html", campaign=campaign, contacts=contacts)
 
 @app.route("/send_emails/<int:campaign_id>", methods=["POST"])
 def send_emails(campaign_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    
+
     # Get campaign info
     cur.execute("SELECT test_mode, test_email FROM campaigns WHERE id = ?", (campaign_id,))
     campaign_info = cur.fetchone()
     test_mode = campaign_info[0] if campaign_info else False
     test_email = campaign_info[1] if campaign_info else ""
-    
+
     if test_mode:
         if not test_email:
             return jsonify({'success': False, 'error': 'Test email not provided'})
-        
+
         # In test mode, send one sample email to the test address
         cur.execute("""
             SELECT cc.*, c.offer_percentage 
@@ -440,21 +439,21 @@ def send_emails(campaign_id):
             LIMIT 1
         """, (campaign_id,))
         contact = cur.fetchone()
-        
+
         if not contact:
             return jsonify({'success': False, 'error': 'No contacts with emails found'})
-        
+
         try:
             server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
             server.starttls()
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            
+
             # Create test email
             msg = MimeMultipart()
             msg['From'] = EMAIL_ADDRESS
             msg['To'] = test_email
             msg['Subject'] = f"TEST EMAIL - Cash Offer for Property at {contact[10]}"
-            
+
             # Email body with test notice
             body = f"""
 *** THIS IS A TEST EMAIL - NOT SENT TO ACTUAL PROPERTY OWNER ***
@@ -485,23 +484,23 @@ Best regards,
 ---
 *** END TEST EMAIL ***
             """.strip()
-            
-            msg.attach(MimeText(body, 'plain'))
+
+            msg.attach(MIMEText(body, 'plain'))
             server.send_message(msg)
             server.quit()
-            
+
             return jsonify({'success': True, 'emails_sent': 1, 'test_mode': True, 'message': f'Test email sent to {test_email}'})
-            
+
         except Exception as e:
             return jsonify({'success': False, 'error': f'Failed to send test email: {str(e)}'})
         finally:
             conn.close()
-    
+
     else:
         # Production mode - send actual emails
         if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
             return jsonify({'success': False, 'error': 'Email credentials not configured'})
-        
+
         # Get campaign and contacts with emails
         cur.execute("""
             SELECT cc.*, c.offer_percentage 
@@ -509,15 +508,15 @@ Best regards,
             JOIN campaigns c ON cc.campaign_id = c.id
             WHERE cc.campaign_id = ? AND cc.email IS NOT NULL AND cc.email_sent = 0
         """, (campaign_id,))
-        
+
         contacts = cur.fetchall()
-        
+
         emails_sent = 0
         try:
             server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
             server.starttls()
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            
+
             for contact in contacts:
                 try:
                     # Create email
@@ -525,7 +524,7 @@ Best regards,
                     msg['From'] = EMAIL_ADDRESS
                     msg['To'] = contact[6]  # email
                     msg['Subject'] = f"Cash Offer for Your Property at {contact[10]}"  # property_address
-                    
+
                     # Email body
                     body = f"""
 Dear {contact[4]} {contact[5]},
@@ -546,39 +545,39 @@ Best regards,
 [Your Name]
 [Your Phone]
                     """.strip()
-                    
-                    msg.attach(MimeText(body, 'plain'))
-                    
+
+                    msg.attach(MIMEText(body, 'plain'))
+
                     server.send_message(msg)
-                    
+
                     # Mark as sent
                     cur.execute("UPDATE campaign_contacts SET email_sent = 1 WHERE id = ?", (contact[0],))
                     emails_sent += 1
-                    
+
                     time.sleep(1)  # Rate limiting
-                    
+
                 except Exception as e:
                     print(f"Failed to send email to {contact[6]}: {e}")
-            
+
             server.quit()
             conn.commit()
-            
+
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
         finally:
             conn.close()
-        
+
         return jsonify({'success': True, 'emails_sent': emails_sent, 'test_mode': False})
 
 @app.route("/generate_letters/<int:campaign_id>")
 def generate_letters(campaign_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    
+
     # Get campaign and contacts without emails
     cur.execute("""
         SELECT cc.*, c.offer_percentage 
@@ -586,9 +585,9 @@ def generate_letters(campaign_id):
         JOIN campaigns c ON cc.campaign_id = c.id
         WHERE cc.campaign_id = ? AND (cc.email IS NULL OR cc.email = '')
     """, (campaign_id,))
-    
+
     contacts = cur.fetchall()
-    
+
     letters = []
     for contact in contacts:
         letter_content = generate_ai_letter(
@@ -598,51 +597,51 @@ def generate_letters(campaign_id):
             contact['assessed_value'],
             contact['offer_percentage']
         )
-        
+
         letters.append({
             'contact': dict(contact),
             'letter': letter_content
         })
-        
+
         # Mark letter as generated
         cur.execute("UPDATE campaign_contacts SET letter_generated = 1 WHERE id = ?", (contact['id'],))
-    
+
     conn.commit()
     conn.close()
-    
+
     return render_template("letters.html", letters=letters, campaign_id=campaign_id)
 
 @app.route("/export/<int:campaign_id>")
 def export_campaign(campaign_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    
+
     cur.execute("""
         SELECT first_name, last_name, email, mailing_address, city, state, zip_code,
                property_address, assessed_value, email_sent, letter_generated
         FROM campaign_contacts 
         WHERE campaign_id = ?
     """, (campaign_id,))
-    
+
     rows = cur.fetchall()
     conn.close()
-    
+
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([
         "First Name", "Last Name", "Email", "Mailing Address", "City", "State", "Zip",
         "Property Address", "Assessed Value", "Email Sent", "Letter Generated"
     ])
-    
+
     for row in rows:
         writer.writerow(row)
-    
+
     csv_data = buf.getvalue()
     buf.close()
-    
+
     return Response(
         csv_data,
         mimetype="text/csv",
