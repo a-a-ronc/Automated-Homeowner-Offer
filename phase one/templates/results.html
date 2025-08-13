@@ -1,48 +1,142 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Parcel Search Results</title>
+    <title>Search Results - Property Investment Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <h1>Parcel Search Results</h1>
-  <a href="/">New Search</a>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Property Investment Tool</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Dashboard</a>
+                <a href="{{ url_for('search') }}">New Search</a>
+                <a href="{{ url_for('campaigns') }}">My Campaigns</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h2>Search Results</h2>
+        
+        <div class="results-header">
+            <p><strong>{{ properties|length }}</strong> result{{ properties|length != 1 and 's' or '' }} found</p>
+            
+            {% if properties %}
+            <div class="campaign-creator">
+                <h3>Create Outreach Campaign</h3>
+                <form id="campaignForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="campaign_name">Campaign Name:</label>
+                            <input type="text" id="campaign_name" name="campaign_name" 
+                                   value="{{ form_data.county }} {{ form_data.state }} Campaign" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="offer_percentage">Offer Percentage (%):</label>
+                            <input type="number" id="offer_percentage" name="offer_percentage" 
+                                   value="60" min="1" max="100" required>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" id="county" value="{{ form_data.county }}">
+                    <input type="hidden" id="state" value="{{ form_data.state }}">
+                    <input type="hidden" id="max_value" value="{{ form_data.max_value }}">
+                    
+                    <button type="button" id="createCampaignBtn" class="btn btn-success">
+                        Create Campaign & Find Contacts
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
 
-  <p><strong>{{ properties|length }}</strong> result{{ properties|length != 1 and 's' or '' }}</p>
+        {% if not properties %}
+            <div class="no-results">
+                <p>No properties found matching your criteria.</p>
+                <a href="{{ url_for('search') }}" class="btn btn-primary">Try Another Search</a>
+            </div>
+        {% else %}
+            <div class="results-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Owner</th>
+                            <th>Mailing Address</th>
+                            <th>Property Address</th>
+                            <th>Building SqFt</th>
+                            <th>Assessed Value</th>
+                            <th>Year Built</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prop in properties %}
+                        <tr>
+                            <td>{{ prop.owner_name or 'N/A' }}</td>
+                            <td>
+                                {{ prop.mailing_address1 or '' }} 
+                                {{ prop.mailing_city or '' }} 
+                                {{ prop.mailing_state or '' }} 
+                                {{ prop.mailing_zip or '' }}
+                            </td>
+                            <td>
+                                {{ prop.situs_address or '' }}, 
+                                {{ prop.city or '' }} 
+                                {{ prop.state or '' }} 
+                                {{ prop.zip_code or '' }}
+                            </td>
+                            <td>{{ prop.building_sqft or 'N/A' }}</td>
+                            <td>${{ "{:,.0f}".format(prop.assessed_value or prop.taxable_value or 0) }}</td>
+                            <td>{{ prop.year_built or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
 
-  {% if not properties %}
-    <p>No results. Try loosening filters or confirm the county import.</p>
-  {% else %}
-    <!-- Keep the user's last filters for export -->
-    <form method="GET" action="/export" style="margin:12px 0;">
-      <input type="hidden" name="county" value="{{ (form_data and form_data.get('county')) or request.args.get('county') }}">
-      <input type="hidden" name="state" value="{{ (form_data and form_data.get('state')) or request.args.get('state','MI') }}">
-      <input type="hidden" name="max_value" value="{{ (form_data and form_data.get('max_value')) or request.args.get('max_value') }}">
-      <input type="hidden" name="min_sqft" value="{{ (form_data and form_data.get('min_sqft')) or request.args.get('min_sqft') }}">
-      <input type="hidden" name="max_sqft" value="{{ (form_data and form_data.get('max_sqft')) or request.args.get('max_sqft') }}">
-      <input type="hidden" name="year_min" value="{{ (form_data and form_data.get('year_min')) or request.args.get('year_min') }}">
-      <button type="submit">Export CSV</button>
-    </form>
-
-    <table border="1" cellpadding="5">
-      <tr>
-        <th>Owner</th>
-        <th>Mailing Address</th>
-        <th>Property Address</th>
-        <th>Building SqFt</th>
-        <th>Assessed Value</th>
-        <th>Year Built</th>
-      </tr>
-      {% for prop in properties %}
-      <tr>
-        <td>{{ prop.owner_name }}</td>
-        <td>{{ prop.mailing_address1 }} {{ prop.mailing_city }} {{ prop.mailing_state }} {{ prop.mailing_zip }}</td>
-        <td>{{ prop.situs_address }}, {{ prop.city }} {{ prop.state }} {{ prop.zip_code }}</td>
-        <td>{{ prop.building_sqft }}</td>
-        <td>{{ prop.assessed_value or prop.taxable_value }}</td>
-        <td>{{ prop.year_built }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  {% endif %}
+    <script>
+    document.getElementById('createCampaignBtn').addEventListener('click', function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Creating Campaign...';
+        
+        const data = {
+            campaign_name: document.getElementById('campaign_name').value,
+            county: document.getElementById('county').value,
+            state: document.getElementById('state').value,
+            max_value: document.getElementById('max_value').value || null,
+            offer_percentage: parseInt(document.getElementById('offer_percentage').value)
+        };
+        
+        fetch('/create_campaign', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(`Campaign created successfully! Added ${result.contacts_added} contacts.`);
+                window.location.href = `/campaign/${result.campaign_id}`;
+            } else {
+                alert('Error creating campaign: ' + (result.error || 'Unknown error'));
+                btn.disabled = false;
+                btn.textContent = 'Create Campaign & Find Contacts';
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+            btn.disabled = false;
+            btn.textContent = 'Create Campaign & Find Contacts';
+        });
+    });
+    </script>
 </body>
 </html>

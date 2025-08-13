@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ campaign.name }} - Property Investment Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Property Investment Tool</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Dashboard</a>
+                <a href="{{ url_for('campaigns') }}">My Campaigns</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h2>{{ campaign.name }}</h2>
+        
+        <div class="campaign-info">
+            <div class="info-card">
+                <h3>Campaign Details</h3>
+                <p><strong>County:</strong> {{ campaign.county }}, {{ campaign.state }}</p>
+                <p><strong>Max Value:</strong> ${{ "{:,.0f}".format(campaign.max_value) if campaign.max_value else 'No limit' }}</p>
+                <p><strong>Offer Percentage:</strong> {{ campaign.offer_percentage }}%</p>
+                <p><strong>Created:</strong> {{ campaign.created_at[:10] }}</p>
+            </div>
+            
+            <div class="campaign-actions">
+                <button id="sendEmailsBtn" class="btn btn-success">Send Email Campaign</button>
+                <a href="{{ url_for('generate_letters', campaign_id=campaign.id) }}" 
+                   class="btn btn-primary">Generate Postal Letters</a>
+                <a href="{{ url_for('export_campaign', campaign_id=campaign.id) }}" 
+                   class="btn btn-secondary">Export All Contacts</a>
+            </div>
+        </div>
+        
+        <div class="contacts-section">
+            <h3>Contacts ({{ contacts|length }})</h3>
+            
+            <div class="contacts-tabs">
+                <button class="tab-btn active" onclick="showTab('all')">All Contacts</button>
+                <button class="tab-btn" onclick="showTab('with-email')">With Email</button>
+                <button class="tab-btn" onclick="showTab('no-email')">No Email</button>
+            </div>
+            
+            <div class="contacts-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Mailing Address</th>
+                            <th>Property Address</th>
+                            <th>Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contactsTableBody">
+                        {% for contact in contacts %}
+                        <tr data-has-email="{{ 'true' if contact.email else 'false' }}">
+                            <td>{{ contact.first_name }} {{ contact.last_name }}</td>
+                            <td>{{ contact.email or 'Not found' }}</td>
+                            <td>
+                                {{ contact.mailing_address }}<br>
+                                {{ contact.city }}, {{ contact.state }} {{ contact.zip_code }}
+                            </td>
+                            <td>{{ contact.property_address }}</td>
+                            <td>${{ "{:,.0f}".format(contact.assessed_value) if contact.assessed_value else 'N/A' }}</td>
+                            <td>
+                                {% if contact.email %}
+                                    {% if contact.email_sent %}
+                                        <span class="status-sent">Email Sent</span>
+                                    {% else %}
+                                        <span class="status-pending">Pending</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if contact.letter_generated %}
+                                        <span class="status-letter">Letter Generated</span>
+                                    {% else %}
+                                        <span class="status-no-email">No Email</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function showTab(tab) {
+        const rows = document.querySelectorAll('#contactsTableBody tr');
+        const buttons = document.querySelectorAll('.tab-btn');
+        
+        buttons.forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        rows.forEach(row => {
+            const hasEmail = row.dataset.hasEmail === 'true';
+            
+            switch(tab) {
+                case 'all':
+                    row.style.display = '';
+                    break;
+                case 'with-email':
+                    row.style.display = hasEmail ? '' : 'none';
+                    break;
+                case 'no-email':
+                    row.style.display = hasEmail ? 'none' : '';
+                    break;
+            }
+        });
+    }
+    
+    document.getElementById('sendEmailsBtn').addEventListener('click', function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        
+        fetch(`/send_emails/{{ campaign.id }}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(`Successfully sent ${result.emails_sent} emails!`);
+                location.reload();
+            } else {
+                alert('Error sending emails: ' + (result.error || 'Unknown error'));
+            }
+            btn.disabled = false;
+            btn.textContent = 'Send Email Campaign';
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+            btn.disabled = false;
+            btn.textContent = 'Send Email Campaign';
+        });
+    });
+    </script>
+</body>
+</html>

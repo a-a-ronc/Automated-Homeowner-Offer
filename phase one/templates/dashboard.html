@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - Property Investment Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Property Investment Tool</h1>
+            <div class="nav-links">
+                <span>Welcome, {{ session.username }}!</span>
+                <a href="{{ url_for('search') }}">Search Properties</a>
+                <a href="{{ url_for('campaigns') }}">My Campaigns</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="dashboard">
+            <h2>Get Started</h2>
+            <div class="dashboard-cards">
+                <div class="card">
+                    <h3>Search Properties</h3>
+                    <p>Find properties that meet your investment criteria</p>
+                    <a href="{{ url_for('search') }}" class="btn btn-primary">Start Search</a>
+                </div>
+                
+                <div class="card">
+                    <h3>View Campaigns</h3>
+                    <p>Manage your outreach campaigns and track results</p>
+                    <a href="{{ url_for('campaigns') }}" class="btn btn-secondary">View Campaigns</a>
+                </div>
+            </div>
+            
+            <div class="how-it-works">
+                <h3>How It Works</h3>
+                <ol>
+                    <li><strong>Search:</strong> Enter your criteria (county, max home value)</li>
+                    <li><strong>Create Campaign:</strong> Generate contact lists with emails and addresses</li>
+                    <li><strong>Send Outreach:</strong> Automatically send emails and generate postal letters</li>
+                    <li><strong>Track Results:</strong> Monitor your campaign performance</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

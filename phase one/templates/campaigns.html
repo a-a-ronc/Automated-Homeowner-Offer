@@ -1,0 +1,69 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Campaigns - Property Investment Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Property Investment Tool</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Dashboard</a>
+                <a href="{{ url_for('search') }}">Search Properties</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h2>My Campaigns</h2>
+        
+        {% if not campaigns %}
+            <div class="no-campaigns">
+                <p>You haven't created any campaigns yet.</p>
+                <a href="{{ url_for('search') }}" class="btn btn-primary">Create Your First Campaign</a>
+            </div>
+        {% else %}
+            <div class="campaigns-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Campaign Name</th>
+                            <th>County/State</th>
+                            <th>Total Contacts</th>
+                            <th>With Email</th>
+                            <th>Emails Sent</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for campaign in campaigns %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('campaign_detail', campaign_id=campaign.id) }}">
+                                    {{ campaign.name }}
+                                </a>
+                            </td>
+                            <td>{{ campaign.county }}, {{ campaign.state }}</td>
+                            <td>{{ campaign.total_contacts }}</td>
+                            <td>{{ campaign.with_email }}</td>
+                            <td>{{ campaign.emails_sent }}</td>
+                            <td>{{ campaign.created_at[:10] }}</td>
+                            <td>
+                                <a href="{{ url_for('campaign_detail', campaign_id=campaign.id) }}" 
+                                   class="btn btn-sm btn-primary">View</a>
+                                <a href="{{ url_for('export_campaign', campaign_id=campaign.id) }}" 
+                                   class="btn btn-sm btn-secondary">Export</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

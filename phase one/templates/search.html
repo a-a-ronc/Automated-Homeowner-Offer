@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Properties - Property Investment Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>Property Investment Tool</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Dashboard</a>
+                <a href="{{ url_for('campaigns') }}">My Campaigns</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h2>Search Properties</h2>
+        
+        <div class="search-form">
+            <form method="POST" id="searchForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="county">County:</label>
+                        <input type="text" id="county" name="county" required placeholder="e.g., Ottawa">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="state">State:</label>
+                        <input type="text" id="state" name="state" value="MI" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="max_value">Maximum Home Value:</label>
+                        <input type="number" id="max_value" name="max_value" placeholder="e.g., 200000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="min_sqft">Minimum Square Feet:</label>
+                        <input type="number" id="min_sqft" name="min_sqft" placeholder="e.g., 1000">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="max_sqft">Maximum Square Feet:</label>
+                        <input type="number" id="max_sqft" name="max_sqft" placeholder="e.g., 3000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="year_min">Minimum Year Built:</label>
+                        <input type="number" id="year_min" name="year_min" placeholder="e.g., 1950">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Search Properties</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
