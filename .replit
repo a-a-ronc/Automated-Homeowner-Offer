@@ -3,6 +3,7 @@ run = "run_all"
 
 [nix]
 channel = "stable-25_05"
+packages = ["glibcLocales", "xcodebuild", "zlib"]
 
 [deployment]
 run = ["sh", "-c", "run_all"]
