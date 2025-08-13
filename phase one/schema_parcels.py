@@ -40,4 +40,4 @@ def ensure_db(db_path: str = DB_FILE):
     print(f"✅ parcels table ready in {db_path}")
 
 if __name__ == "__main__":
-    ensure_db()
+    ensure_db()()

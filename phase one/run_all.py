@@ -16,4 +16,4 @@ for step in steps:
     result = subprocess.run(step)
     if result.returncode != 0:
         print(f"❌ Step failed: {' '.join(step)}")
-        sys.exit(result.returncode)
+        sys.exit(result.returncode)code)

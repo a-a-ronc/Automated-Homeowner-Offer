@@ -6,7 +6,7 @@ import hashlib
 import os
 import smtplib
 from email.mime.text import MIMEText
-from email.mime.multipart import MimeMultipart
+from email.mime.multipart import MIMEMultipart
 import requests
 import re
 import time
@@ -449,7 +449,7 @@ def send_emails(campaign_id):
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
 
             # Create test email
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = EMAIL_ADDRESS
             msg['To'] = test_email
             msg['Subject'] = f"TEST EMAIL - Cash Offer for Property at {contact[10]}"
@@ -520,7 +520,7 @@ Best regards,
             for contact in contacts:
                 try:
                     # Create email
-                    msg = MimeMultipart()
+                    msg = MIMEMultipart()
                     msg['From'] = EMAIL_ADDRESS
                     msg['To'] = contact[6]  # email
                     msg['Subject'] = f"Cash Offer for Your Property at {contact[10]}"  # property_address
